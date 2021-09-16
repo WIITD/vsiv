@@ -3,17 +3,19 @@ module main
 import os
 import gg
 import gx
+import sokol.sapp
 
 struct App {
 mut:
-	gg    &gg.Context
-	img   gg.Image
-	size  gg.Size
-	px    f32
-	py    f32
-	msx   int
-	msy   int
-	scale f32
+	gg      &gg.Context
+	img     gg.Image
+	img_def gg.Image
+	size    gg.Size
+	px      f32
+	py      f32
+	msx     int
+	msy     int
+	scale   f32
 }
 
 fn main() {
@@ -27,6 +29,7 @@ fn main() {
 		height: 512
 		create_window: true
 		resizable: true
+		enable_dragndrop: true
 		window_title: 'vsiv'
 		init_fn: init
 		frame_fn: frame
@@ -37,21 +40,19 @@ fn main() {
 }
 
 fn init(mut app App) {
+	mut file := $embed_file('vsiv.png')
+	app.img_def = app.gg.create_image_from_memory(file.data(), file.len)
 	if os.args.len == 1 {
-		mut file := $embed_file('vsiv.png')
-		app.img = app.gg.create_image_from_memory(file.data(), file.len)
+		app.img = app.img_def
 	} else {
 		app.img = app.gg.create_image(os.args[1])
 	}
 	app.scale = 1.0
-	app.gg.resize(app.img.width, app.img.height)
-	app.gg.refresh_ui()
 }
 
 fn frame(mut app App) {
 	app.gg.begin()
 	draw(mut app)
-	// update(mut app)
 	app.gg.end()
 }
 
@@ -101,8 +102,8 @@ fn event(ev &gg.Event, mut app App) {
 
 	// mouse look x
 	if ev.mouse_button == .left {
-		app.px -= (app.gg.mouse_pos_x - app.msx) / 20
-		app.py -= (app.gg.mouse_pos_y - app.msy) / 20
+		app.px += (app.gg.mouse_pos_x - app.msx) / 20
+		app.py += (app.gg.mouse_pos_y - app.msy) / 20
 	} else {
 		app.msx = app.gg.mouse_pos_x
 		app.msy = app.gg.mouse_pos_x
@@ -136,5 +137,16 @@ fn event(ev &gg.Event, mut app App) {
 	}
 	if app.scale > 10.0 {
 		app.scale = 10.0
+	}
+
+	if ev.typ == .files_droped {
+		mut file := sapp.get_dropped_file_path(0)
+		println(file)
+		app.img = app.gg.create_image(file)
+		if app.img.ok == false {
+			println('error while loading file, using embeded file instead')
+			app.img = app.img_def
+		}
+		app.scale = 1.0
 	}
 }
